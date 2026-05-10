@@ -1,0 +1,18 @@
+name = "blvm-zmq"
+version = "0.1.0"
+entry_point = "blvm-zmq"
+
+description = "Bitcoin-compatible ZMQ PUB notifications: hashblock, hashtx, rawblock, rawtx, sequence"
+author = "Bitcoin Commons Team"
+
+capabilities = [
+    "read_blockchain",
+    "subscribe_events",
+]
+
+[config_schema]
+hashblock = "tcp://127.0.0.1:28332 — block hash notifications (optional)"
+hashtx = "tcp://127.0.0.1:28333 — transaction hash notifications (optional)"
+rawblock = "tcp://127.0.0.1:28334 — raw block wire bytes (optional)"
+rawtx = "tcp://127.0.0.1:28335 — raw transaction wire bytes (optional)"
+sequence = "tcp://127.0.0.1:28336 — mempool sequence notifications (optional)"

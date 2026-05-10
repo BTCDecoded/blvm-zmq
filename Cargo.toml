@@ -1,0 +1,48 @@
+[package]
+name = "blvm-zmq"
+version = "0.1.0"
+edition = "2021"
+authors = ["Bitcoin Commons Team"]
+description = "ZeroMQ PUB notifications module for blvm-node (hashblock, hashtx, rawblock, rawtx, sequence)"
+license = "MIT"
+repository = "https://github.com/BTCDecoded/blvm-zmq"
+homepage = "https://btcdecoded.org"
+keywords = ["bitcoin", "zmq", "zeromq", "module"]
+categories = ["cryptography::cryptocurrencies"]
+
+[[bin]]
+name = "blvm-zmq"
+path = "src/main.rs"
+
+[lib]
+name = "blvm_zmq"
+path = "src/lib.rs"
+
+[dependencies]
+blvm-node = { path = "../blvm-node" }
+blvm-sdk = { path = "../blvm-sdk", default-features = false, features = ["node"] }
+blvm-sdk-macros = { path = "../blvm-sdk/crates/blvm-sdk-macros" }
+blvm-protocol = { path = "../blvm-protocol" }
+
+tokio = { version = "1.48", features = ["full"] }
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+toml = "=0.8.2"
+anyhow = "1.0"
+thiserror = "1.0"
+async-trait = "0.1"
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+
+zeromq = { package = "zmq", version = "=0.10" }
+
+[patch.crates-io]
+blvm-node = { path = "../blvm-node" }
+blvm-sdk = { path = "../blvm-sdk" }
+blvm-sdk-macros = { path = "../blvm-sdk/crates/blvm-sdk-macros" }
+blvm-protocol = { path = "../blvm-protocol" }
+blvm-consensus = { path = "../blvm-consensus" }
+blvm-primitives = { path = "../blvm-primitives" }
+blvm-secp256k1 = { path = "../blvm-secp256k1" }
+blvm-muhash = { path = "../blvm-muhash" }
+blvm-spec-lock = { path = "../blvm-spec-lock" }

@@ -328,11 +328,11 @@ jobs:
       - name: Update blvm registry/modules.json
         env:
           REGISTRY_UPDATE_TOKEN: ${{ secrets.REGISTRY_UPDATE_TOKEN }}
+          VERSION_TAG: ${{ steps.version.outputs.version_tag }}
+          CRATE_NAME: ${{ steps.version.outputs.crate_name }}
+          SHA: ${{ steps.build.outputs.sha256 }}
         run: |
           [ -z "${REGISTRY_UPDATE_TOKEN:-}" ] && echo "⚠️  REGISTRY_UPDATE_TOKEN not set, skipping registry update" && exit 0
-          VERSION_TAG="${{ steps.version.outputs.version_tag }}"
-          CRATE_NAME="${{ steps.version.outputs.crate_name }}"
-          SHA="${{ steps.build.outputs.sha256 }}"
           git clone "https://x-access-token:${REGISTRY_UPDATE_TOKEN}@github.com/BTCDecoded/blvm.git" blvm-repo
           python3 - <<EOF
           import json, os, re
@@ -362,8 +362,3 @@ jobs:
           git add registry/modules.json
           git diff --staged --quiet || git commit -m "chore: update ${CRATE_NAME} to ${VERSION_TAG} in registry"
           git push
-        env:
-          VERSION_TAG: ${{ steps.version.outputs.version_tag }}
-          CRATE_NAME: ${{ steps.version.outputs.crate_name }}
-          SHA: ${{ steps.build.outputs.sha256 }}
-          REGISTRY_UPDATE_TOKEN: ${{ secrets.REGISTRY_UPDATE_TOKEN }}

@@ -21,5 +21,3 @@ sequence = "tcp://127.0.0.1:28336 — mempool sequence notifications (optional)"
 [downloads]
 x86_64-linux  = { url = "", sha256 = "" }
 aarch64-linux = { url = "", sha256 = "" }
-x86_64-apple  = { url = "", sha256 = "" }
-aarch64-apple = { url = "", sha256 = "" }

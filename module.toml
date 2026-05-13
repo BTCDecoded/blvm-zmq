@@ -16,3 +16,10 @@ hashtx = "tcp://127.0.0.1:28333 — transaction hash notifications (optional)"
 rawblock = "tcp://127.0.0.1:28334 — raw block wire bytes (optional)"
 rawtx = "tcp://127.0.0.1:28335 — raw transaction wire bytes (optional)"
 sequence = "tcp://127.0.0.1:28336 — mempool sequence notifications (optional)"
+
+# Written by release CI — do not edit by hand.
+[downloads]
+x86_64-linux  = { url = "", sha256 = "" }
+aarch64-linux = { url = "", sha256 = "" }
+x86_64-apple  = { url = "", sha256 = "" }
+aarch64-apple = { url = "", sha256 = "" }

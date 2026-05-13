@@ -1,9 +1,6 @@
 name: Release
 
 on:
-  push:
-    tags:
-      - "v*"
   workflow_dispatch:
     inputs:
       tag:
@@ -42,6 +39,14 @@ jobs:
         uses: dtolnay/rust-toolchain@stable
         with:
           targets: ${{ matrix.target }}
+
+      - name: Install libzmq (Ubuntu native)
+        if: runner.os == 'Linux' && !matrix.use_cross
+        run: sudo apt-get update && sudo apt-get install -y libzmq3-dev
+
+      - name: Install libzmq (macOS)
+        if: runner.os == 'macOS'
+        run: brew install zmq
 
       - name: Install cross (for cross-compilation)
         if: matrix.use_cross
@@ -145,77 +150,84 @@ jobs:
           draft: false
           prerelease: ${{ contains(github.event.inputs.tag || github.ref_name, '-') }}
 
-  update-registry:
-    name: Update blvm registry/modules.json
+  update-module-toml:
+    name: Update module.toml with version and download hashes
     needs: release
     runs-on: ubuntu-22.04
+    permissions:
+      contents: write
 
     steps:
-      - name: Checkout blvm repo
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
         with:
-          repository: BTCDecoded/blvm
-          token: ${{ secrets.REGISTRY_UPDATE_TOKEN }}
-          path: blvm-repo
+          ref: main
+          fetch-depth: 0
 
-      - name: Download sha256sums
+      - name: Download sha256sums from build artifacts
         uses: actions/download-artifact@v4
         with:
           path: artifacts/
           merge-multiple: true
 
-      - name: Patch registry/modules.json
-        run: |
-          VERSION="${{ github.event.inputs.tag || github.ref_name }}"
-          SUMS_FILE="artifacts/sha256sums.txt"
-          REGISTRY="blvm-repo/registry/modules.json"
-
-          get_sha() {
-            grep "$1" "$SUMS_FILE" | awk '{print $1}'
-          }
-
-          python3 - <<'EOF'
-          import json, os, sys
-
-          version = os.environ["VERSION"]
-          registry_path = os.environ["REGISTRY"]
-          sums_file = os.environ["SUMS_FILE"]
-
-          # Build sha map
-          sha_map = {}
-          with open(sums_file) as f:
-              for line in f:
-                  parts = line.strip().split()
-                  if len(parts) == 2:
-                      sha_map[parts[1]] = parts[0]
-
-          with open(registry_path) as f:
-              entries = json.load(f)
-
-          for entry in entries:
-              if entry["name"] != "blvm-zmq":
-                  continue
-              entry["version"] = version
-              for platform, info in entry["binaries"].items():
-                  artifact = info["url"].split("/")[-1]
-                  if artifact in sha_map:
-                      info["sha256"] = sha_map[artifact]
-                  # Update URL to point to exact version tag (not latest)
-                  info["url"] = info["url"].replace("/latest/download/", f"/download/{version}/")
-
-          with open(registry_path, "w") as f:
-              json.dump(entries, f, indent=2)
-          EOF
+      - name: Patch module.toml
         env:
           VERSION: ${{ github.event.inputs.tag || github.ref_name }}
-          REGISTRY: blvm-repo/registry/modules.json
-          SUMS_FILE: artifacts/sha256sums.txt
-
-      - name: Commit and push
         run: |
-          cd blvm-repo
-          git config user.name "github-actions[bot]"
+          BASE_URL="https://github.com/BTCDecoded/blvm-zmq/releases/download/${VERSION}"
+
+          SHA_X86_LINUX=$(grep   "blvm-zmq-x86_64-linux$"   artifacts/sha256sums.txt | awk '{print $1}')
+          SHA_AARCH64_LINUX=$(grep "blvm-zmq-aarch64-linux$" artifacts/sha256sums.txt | awk '{print $1}')
+          SHA_X86_MACOS=$(grep   "blvm-zmq-x86_64-macos$"   artifacts/sha256sums.txt | awk '{print $1}')
+          SHA_AARCH64_MACOS=$(grep "blvm-zmq-aarch64-macos$" artifacts/sha256sums.txt | awk '{print $1}')
+
+          VERSION="$VERSION" \
+          BASE_URL="$BASE_URL" \
+          SHA_X86_LINUX="$SHA_X86_LINUX" \
+          SHA_AARCH64_LINUX="$SHA_AARCH64_LINUX" \
+          SHA_X86_MACOS="$SHA_X86_MACOS" \
+          SHA_AARCH64_MACOS="$SHA_AARCH64_MACOS" \
+          python3 - <<'PYEOF'
+          import re, pathlib, os
+
+          version  = os.environ["VERSION"]
+          base_url = os.environ["BASE_URL"]
+
+          platforms = {
+              "x86_64-linux":  ("blvm-zmq-x86_64-linux",   os.environ["SHA_X86_LINUX"]),
+              "aarch64-linux": ("blvm-zmq-aarch64-linux",  os.environ["SHA_AARCH64_LINUX"]),
+              "x86_64-apple":  ("blvm-zmq-x86_64-macos",   os.environ["SHA_X86_MACOS"]),
+              "aarch64-apple": ("blvm-zmq-aarch64-macos",  os.environ["SHA_AARCH64_MACOS"]),
+          }
+
+          p = pathlib.Path("module.toml")
+          text = p.read_text()
+
+          text = re.sub(
+              r'^(version\s*=\s*)"[^"]*"',
+              rf'\g<1>"{version}"',
+              text, flags=re.MULTILINE
+          )
+
+          lines = ["\n[downloads]"]
+          for key, (artifact, sha) in platforms.items():
+              url = f"{base_url}/{artifact}"
+              lines.append(f'{key:<14}= {{ url = "{url}", sha256 = "{sha}" }}')
+          new_downloads = "\n".join(lines) + "\n"
+
+          if "[downloads]" in text:
+              text = re.sub(r'\n\[downloads\].*', new_downloads, text, flags=re.DOTALL)
+          else:
+              text = text.rstrip("\n") + new_downloads
+
+          p.write_text(text)
+          print(f"module.toml updated: version={version}")
+          PYEOF
+
+      - name: Commit and push module.toml
+        run: |
+          git config user.name  "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add registry/modules.json
-          git diff --staged --quiet || git commit -m "chore: update blvm-zmq to ${{ github.event.inputs.tag || github.ref_name }} in registry"
-          git push
+          git add module.toml
+          git diff --staged --quiet && echo "No changes to module.toml" && exit 0
+          git commit -m "chore: update downloads for ${{ github.event.inputs.tag || github.ref_name }} [skip ci]"
+          git push origin main

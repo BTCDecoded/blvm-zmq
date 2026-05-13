@@ -19,5 +19,6 @@ sequence = "tcp://127.0.0.1:28336 — mempool sequence notifications (optional)"
 
 # Written by release CI — do not edit by hand.
 [downloads]
-x86_64-linux  = { url = "", sha256 = "" }
-aarch64-linux = { url = "", sha256 = "" }
+x86_64-linux   = { url = "", sha256 = "" }
+aarch64-linux  = { url = "", sha256 = "" }
+x86_64-windows = { url = "", sha256 = "" }

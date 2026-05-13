@@ -175,6 +175,12 @@ jobs:
       - name: Strip [patch.crates-io] for crates.io-only build
         uses: BTCDecoded/rust-ci/strip-patch-crates-io@main
 
+      - name: Job-local HOME (Linux; avoid rustc ETXTBSY on shared rustup)
+        if: runner.os == 'Linux'
+        run: |
+          mkdir -p "${RUNNER_TEMP}/blvm-zmq-release-home"
+          echo "HOME=${RUNNER_TEMP}/blvm-zmq-release-home" >> "$GITHUB_ENV"
+
       - name: Runner cache key (Linux)
         if: runner.os == 'Linux'
         id: runner_cache

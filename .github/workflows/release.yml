@@ -175,17 +175,13 @@ jobs:
           targets: ${{ matrix.target }}
 
       - name: Install libzmq (Ubuntu native)
-        if: runner.os == 'Linux' && !matrix.use_cross
+        if: runner.os == 'Linux' && matrix.use_cross != true
         run: sudo apt-get update && sudo apt-get install -y libzmq3-dev
 
-      - name: Install libzmq (Windows)
+      # zmq-sys builds vendored libzmq as C++ with MSVC; Git Bash jobs need VsDevCmd.
+      - name: MSVC environment (Windows)
         if: runner.os == 'Windows'
-        shell: bash
-        run: |
-          choco install zeromq --no-progress -y
-          ZMQ_ROOT="C:/ProgramData/chocolatey/lib/zeromq"
-          echo "ZMQ_LIB_DIR=${ZMQ_ROOT}/lib" >> "$GITHUB_ENV"
-          echo "ZMQ_INCLUDE_DIR=${ZMQ_ROOT}/include" >> "$GITHUB_ENV"
+        uses: ilammy/msvc-dev-cmd@v1
 
       - name: Install cross (for cross-compilation)
         if: matrix.use_cross
@@ -354,7 +350,8 @@ jobs:
         run: |
           git config user.name  "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add module.toml Cargo.toml Cargo.lock
+          git add module.toml Cargo.toml
+          git add -f Cargo.lock
           git diff --staged --quiet && echo "Nothing to commit" && exit 0
           git commit -m "chore: release ${VERSION_TAG} — sync Cargo.toml, module.toml [skip ci]"
           git push origin main

@@ -12,14 +12,18 @@ permissions:
 jobs:
   build:
     name: Build ${{ matrix.target }}
-    runs-on: ubuntu-22.04
+    runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
       matrix:
         include:
           - target: x86_64-unknown-linux-gnu
+            os: ubuntu-22.04
           - target: aarch64-unknown-linux-gnu
+            os: ubuntu-22.04
             use_cross: true
+          - target: x86_64-pc-windows-msvc
+            os: windows-2022
 
     steps:
       - uses: actions/checkout@v4
@@ -29,29 +33,37 @@ jobs:
         with:
           targets: ${{ matrix.target }}
 
-      - name: Install libzmq (native x86_64)
-        if: '!matrix.use_cross'
+      - name: Install libzmq (Ubuntu native)
+        if: runner.os == 'Linux' && !matrix.use_cross
         run: sudo apt-get update && sudo apt-get install -y libzmq3-dev
+
+      - name: Install libzmq (Windows)
+        if: runner.os == 'Windows'
+        shell: bash
+        run: |
+          choco install zeromq --no-progress -y
+          ZMQ_ROOT="C:/ProgramData/chocolatey/lib/zeromq"
+          echo "ZMQ_LIB_DIR=${ZMQ_ROOT}/lib" >> "$GITHUB_ENV"
+          echo "ZMQ_INCLUDE_DIR=${ZMQ_ROOT}/include" >> "$GITHUB_ENV"
 
       - name: Install cross (for cross-compilation)
         if: matrix.use_cross
         run: cargo install cross --locked
 
       - name: Strip [patch.crates-io] path overrides
+        shell: python3 {0}
         run: |
-          python3 - <<'EOF'
-          import re, pathlib
+          import re, pathlib, subprocess
           p = pathlib.Path("Cargo.toml")
           text = p.read_text()
           text = re.sub(r'\n\[patch\.crates-io\].*', '', text, flags=re.DOTALL)
           p.write_text(text)
           print("Stripped [patch.crates-io] — using crates.io versions")
-          EOF
-          # Delete stale lockfile so cargo resolves fresh from the crates.io index
-          rm -f Cargo.lock
-          cargo update
+          pathlib.Path("Cargo.lock").unlink(missing_ok=True)
+          subprocess.run(["cargo", "update"], check=True)
 
       - name: Build
+        shell: bash
         run: |
           if [ "${{ matrix.use_cross }}" = "true" ]; then
             cross build --release --target ${{ matrix.target }}

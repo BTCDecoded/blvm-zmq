@@ -131,7 +131,8 @@ jobs:
         if: matrix.use_cross
         run: cargo install cross --locked
 
-      - name: Build
+      - name: Build (Linux)
+        if: runner.os == 'Linux'
         shell: bash
         run: |
           if [ "${{ matrix.use_cross }}" = "true" ]; then
@@ -139,6 +140,12 @@ jobs:
           else
             cargo build --release --target ${{ matrix.target }}
           fi
+
+      # pwsh: Git Bash puts Git/usr/bin first, so `link.exe` is the wrong binary (MSVC vs GNU).
+      - name: Build (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: cargo build --release --target ${{ matrix.target }}
 
       - name: Save Cargo cache (Linux self-hosted)
         if: always() && runner.os == 'Linux'

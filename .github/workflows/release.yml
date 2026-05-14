@@ -235,7 +235,8 @@ jobs:
         if: matrix.use_cross
         run: cargo install cross --locked
 
-      - name: Build release binary
+      - name: Build release binary (Linux)
+        if: runner.os == 'Linux'
         shell: bash
         run: |
           if [ "${{ matrix.use_cross }}" = "true" ]; then
@@ -244,7 +245,14 @@ jobs:
             cargo build --locked --release --target ${{ matrix.target }}
           fi
         env:
-          CARGO_INCREMENTAL: "${{ runner.os == 'Linux' && '1' || '0' }}"
+          CARGO_INCREMENTAL: "1"
+
+      - name: Build release binary (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: cargo build --locked --release --target ${{ matrix.target }}
+        env:
+          CARGO_INCREMENTAL: "0"
 
       - name: Compute sha256
         id: sha256

@@ -1,6 +1,6 @@
 [package]
 name = "blvm-zmq"
-version = "0.1.0"
+version = "0.1.4"
 edition = "2021"
 authors = ["Bitcoin Commons Team"]
 description = "ZeroMQ PUB notifications module for blvm-node (hashblock, hashtx, rawblock, rawtx, sequence)"
@@ -35,14 +35,3 @@ tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 
 zeromq = { package = "zmq", version = "=0.10" }
-
-[patch.crates-io]
-blvm-node = { path = "../blvm-node" }
-blvm-sdk = { path = "../blvm-sdk" }
-blvm-sdk-macros = { path = "../blvm-sdk/crates/blvm-sdk-macros" }
-blvm-protocol = { path = "../blvm-protocol" }
-blvm-consensus = { path = "../blvm-consensus" }
-blvm-primitives = { path = "../blvm-primitives" }
-blvm-secp256k1 = { path = "../blvm-secp256k1" }
-blvm-muhash = { path = "../blvm-muhash" }
-blvm-spec-lock = { path = "../blvm-spec-lock" }

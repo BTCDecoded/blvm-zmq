@@ -19,7 +19,10 @@ name = "blvm_zmq"
 path = "src/lib.rs"
 
 [dependencies]
-blvm-node = { version = ">=0.1, <1" }
+# `sled` is required for `blvm_sdk::module::database::open_module_db` (dynamic open_tree).
+# crates.io blvm-sdk 0.1.5's `node` feature does not enable `blvm-node/sled`; keep this explicit
+# so release binaries stay compatible with default RocksDB nodes.
+blvm-node = { version = ">=0.1, <1", features = ["sled"] }
 blvm-sdk = { version = ">=0.1, <1", default-features = false, features = ["node"] }
 blvm-sdk-macros = { version = ">=0.1, <1" }
 blvm-protocol = { version = ">=0.1, <1" }

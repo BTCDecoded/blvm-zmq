@@ -18,7 +18,3 @@ rawtx = "tcp://127.0.0.1:28335 — raw transaction wire bytes (optional)"
 sequence = "tcp://127.0.0.1:28336 — mempool sequence notifications (optional)"
 
 # Written by release CI — do not edit by hand.
-[downloads]
-x86_64-linux  = { url = "https://github.com/BTCDecoded/blvm-zmq/releases/download/v0.1.5/blvm-zmq-x86_64-linux", sha256 = "a8ff8ca6546dc30506d017d859e84643d92591117886779d65e306147aa3f1e1" }
-aarch64-linux = { url = "https://github.com/BTCDecoded/blvm-zmq/releases/download/v0.1.5/blvm-zmq-aarch64-linux", sha256 = "2bb05a72f72c021553b3682204f7e7e9eb98685143e9649485240290eb098add" }
-x86_64-windows= { url = "https://github.com/BTCDecoded/blvm-zmq/releases/download/v0.1.5/blvm-zmq-x86_64-windows.exe", sha256 = "7b3715f48cbc4b57bb96e05554ef91d2494aca7a7736ae43b7c8efbedd3a9e42" }

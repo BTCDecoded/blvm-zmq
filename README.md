@@ -38,3 +38,7 @@ Patches in `Cargo.toml` point at sibling `blvm-*` crates; strip them for crates.
 - copy the release binary + `module.toml` into `modules/blvm-zmq/`.
 
 See `blvm-node` docs: `docs/ZMQ_NOTIFICATIONS.md` (updated for the module workflow).
+
+## Releases and `[downloads]`
+
+`module.toml` **`[downloads]`** is owned by **release CI** (URLs + SHA-256 after a successful finalize). Empty placeholders on `main` are normal until then—treat as **non-bootstrap** until filled. Policy: [Module registry](../../blvm/README.md#module-registry) in the **`blvm`** crate README.

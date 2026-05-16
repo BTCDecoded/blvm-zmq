@@ -1,6 +1,6 @@
 [package]
 name = "blvm-zmq"
-version = "0.1.5"
+version = "0.1.6"
 edition = "2021"
 authors = ["Bitcoin Commons Team"]
 description = "ZeroMQ PUB notifications module for blvm-node (hashblock, hashtx, rawblock, rawtx, sequence)"

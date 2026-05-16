@@ -1,5 +1,5 @@
 name = "blvm-zmq"
-version = "0.1.5"
+version = "0.1.6"
 entry_point = "blvm-zmq"
 
 description = "Bitcoin-compatible ZMQ PUB notifications: hashblock, hashtx, rawblock, rawtx, sequence"

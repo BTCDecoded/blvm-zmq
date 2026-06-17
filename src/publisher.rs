@@ -3,10 +3,10 @@
 use anyhow::{Context, Result};
 use blvm_protocol::wire::{serialize_block, serialize_tx};
 use blvm_protocol::{Block, Hash, Transaction};
-use std::sync::atomic::{AtomicU32, Ordering};
 use std::sync::Mutex;
+use std::sync::atomic::{AtomicU32, Ordering};
 use tracing::{debug, info, warn};
-use zeromq::{Context as ZmqContext, Socket, PUB};
+use zeromq::{Context as ZmqContext, PUB, Socket};
 
 use crate::config::ZmqConfig;
 

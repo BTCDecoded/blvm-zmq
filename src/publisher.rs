@@ -1,7 +1,7 @@
 //! ZeroMQ PUB publisher (Bitcoin-style notification topics).
 
 use anyhow::{Context, Result};
-use blvm_protocol::wire::{serialize_block, serialize_tx};
+use blvm_protocol::wire::{serialize_block_witnesses, serialize_tx};
 use blvm_protocol::{Block, Hash, Transaction};
 use std::sync::Mutex;
 use std::sync::atomic::{AtomicU32, Ordering};
@@ -108,7 +108,8 @@ impl ZmqPublisher {
     pub fn publish_rawblock(&self, block: &Block) -> Result<()> {
         let g = self.inner.lock().expect("zmq publisher mutex poisoned");
         if let Some(ref socket) = g.rawblock_socket {
-            let block_data = serialize_block(block).map_err(|e| anyhow::anyhow!("{e}"))?;
+            let block_data =
+                serialize_block_witnesses(block, &[]).map_err(|e| anyhow::anyhow!("{e}"))?;
             socket.send("rawblock", zeromq::SNDMORE)?;
             socket.send(&block_data, 0)?;
             debug!(

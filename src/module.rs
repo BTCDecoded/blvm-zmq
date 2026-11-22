@@ -85,10 +85,10 @@ impl ZmqModule {
         event: &EventMessage,
         _ctx: &InvocationContext,
     ) -> Result<(), ModuleError> {
-        if let EventPayload::MempoolTransactionRemoved { tx_hash, .. } = event.payload {
-            if let Err(e) = self.publisher.publish_sequence(&tx_hash, false) {
-                warn!("blvm-zmq sequence removal: {}", e);
-            }
+        if let EventPayload::MempoolTransactionRemoved { tx_hash, .. } = event.payload
+            && let Err(e) = self.publisher.publish_sequence(&tx_hash, false)
+        {
+            warn!("blvm-zmq sequence removal: {}", e);
         }
         Ok(())
     }

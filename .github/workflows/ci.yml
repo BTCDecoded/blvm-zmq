@@ -93,7 +93,7 @@ jobs:
       - name: Install Rust (Linux self-hosted)
         uses: BTCDecoded/rust-ci/install-rust-toolchain@main
         with:
-          toolchain: 1.88.0
+          toolchain: 1.91.0
 
       - name: Install libzmq (Linux native)
         run: |
@@ -103,21 +103,15 @@ jobs:
             pacman -Qq zeromq >/dev/null 2>&1 || sudo pacman -Sy --noconfirm zeromq pkgconf
           fi
 
-      - name: Regenerate lockfile for crates.io graph
-        shell: bash
-        run: |
-          rm -f Cargo.lock
-          cargo generate-lockfile
-
       - name: rustfmt
         run: cargo fmt --all -- --check
 
       - name: clippy
-        run: cargo clippy --all-targets -- -D warnings
+        run: cargo clippy --locked --all-targets -- -D warnings
 
       - name: test
         if: github.event_name != 'pull_request'
-        run: cargo test --all-targets
+        run: cargo test --locked --all-targets
 
       - name: Save Cargo cache (Linux self-hosted)
         if: always()
@@ -188,7 +182,7 @@ jobs:
         if: runner.os == 'Linux'
         uses: BTCDecoded/rust-ci/install-rust-toolchain@main
         with:
-          toolchain: 1.88.0
+          toolchain: 1.91.0
 
       - name: Install Rust (Windows)
         if: runner.os == 'Windows'
@@ -214,12 +208,6 @@ jobs:
         if: runner.os == 'Windows'
         uses: ilammy/msvc-dev-cmd@v1
 
-      - name: Regenerate lockfile for crates.io graph
-        shell: bash
-        run: |
-          rm -f Cargo.lock
-          cargo generate-lockfile
-
       - name: Install cross (aarch64 Linux)
         if: matrix.use_cross
         run: cargo install cross --locked
@@ -229,16 +217,16 @@ jobs:
         shell: bash
         run: |
           if [ "${{ matrix.use_cross }}" = "true" ]; then
-            cross build --release --target ${{ matrix.target }}
+            cross build --locked --release --target ${{ matrix.target }}
           else
-            cargo build --release --target ${{ matrix.target }}
+            cargo build --locked --release --target ${{ matrix.target }}
           fi
 
       # pwsh: Git Bash puts Git/usr/bin first, so `link.exe` is the wrong binary (MSVC vs GNU).
       - name: Build (Windows)
         if: runner.os == 'Windows'
         shell: pwsh
-        run: cargo build --release --target ${{ matrix.target }}
+        run: cargo build --locked --release --target ${{ matrix.target }}
 
       - name: Save Cargo cache (Linux self-hosted)
         if: always() && runner.os == 'Linux'

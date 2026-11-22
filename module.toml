@@ -7,6 +7,7 @@ author = "Bitcoin Commons Team"
 
 capabilities = [
     "read_blockchain",
+    "read_mempool",
     "subscribe_events",
 ]
 

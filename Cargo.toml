@@ -1,8 +1,8 @@
 [package]
 name = "blvm-zmq"
-version = "0.1.6"
+version = "0.1.7"
 edition = "2024"
-rust-version = "1.85"
+rust-version = "1.91"
 authors = ["Bitcoin Commons Team"]
 description = "ZeroMQ PUB notifications module for blvm-node (hashblock, hashtx, rawblock, rawtx, sequence)"
 license = "MIT"
@@ -20,13 +20,13 @@ name = "blvm_zmq"
 path = "src/lib.rs"
 
 [dependencies]
+# Pin floors to the beta.6 node IPC line (0.1.104). Older locked crates (e.g. 0.1.9)
+# skew bincode MessageType/RequestPayload and disconnect before ZMQ bind.
 # `sled` is required for `blvm_sdk::module::database::open_module_db` (dynamic open_tree).
-# crates.io blvm-sdk 0.1.5's `node` feature does not enable `blvm-node/sled`; keep this explicit
-# so release binaries stay compatible with default RocksDB nodes.
-blvm-node = { version = ">=0.1, <1", features = ["sled"] }
-blvm-sdk = { version = ">=0.1, <1", default-features = false, features = ["node"] }
-blvm-sdk-macros = { version = ">=0.1, <1" }
-blvm-protocol = { version = ">=0.1, <1" }
+blvm-node = { version = ">=0.1.104, <1", features = ["sled"] }
+blvm-sdk = { version = ">=0.1.27, <1", default-features = false, features = ["node"] }
+blvm-sdk-macros = { version = ">=0.1.27, <1" }
+blvm-protocol = { version = ">=0.1.55, <1" }
 
 tokio = { version = "1.48", features = ["full"] }
 serde = { version = "1.0", features = ["derive"] }

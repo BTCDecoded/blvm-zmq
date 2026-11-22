@@ -93,7 +93,7 @@ jobs:
       - name: Install Rust (Linux self-hosted)
         uses: BTCDecoded/rust-ci/install-rust-toolchain@main
         with:
-          toolchain: 1.88.0
+          toolchain: 1.91.0
 
       - name: Install libzmq (Linux native)
         run: |
@@ -188,7 +188,7 @@ jobs:
         if: runner.os == 'Linux'
         uses: BTCDecoded/rust-ci/install-rust-toolchain@main
         with:
-          toolchain: 1.88.0
+          toolchain: 1.91.0
 
       - name: Install Rust (Windows)
         if: runner.os == 'Windows'

@@ -3,18 +3,37 @@
 //! Replaces the in-process `zmq` feature on blvm-node. Configure endpoints in this module's
 //! `config.toml` (same keys as the old `[zmq]` block: hashblock, hashtx, rawblock, rawtx, sequence).
 
-use anyhow::Result;
-use blvm_sdk::module::{ModuleBootstrap, ModuleDb};
+use anyhow::{Result, bail};
+use blvm_node::storage::database::{Database, Tree};
+use blvm_sdk::module::ModuleBootstrap;
 use blvm_zmq::{ZmqConfig, ZmqModule, ZmqPublisher};
+use std::any::Any;
 use std::sync::Arc;
 use tracing::{info, warn};
 
 const MODULE_NAME: &str = "blvm-zmq";
 
-#[tokio::main]
+// The SDK runner needs a database handle, but this module never persists data.
+struct StatelessDatabase;
+
+impl Database for StatelessDatabase {
+    fn open_tree(&self, _name: &str) -> Result<Box<dyn Tree>> {
+        bail!("blvm-zmq does not use a database")
+    }
+
+    fn flush(&self) -> Result<()> {
+        Ok(())
+    }
+
+    fn as_any(&self) -> &dyn Any {
+        self
+    }
+}
+
+// The SDK dispatches events serially; avoid reserving a worker stack per host CPU.
+#[tokio::main(flavor = "current_thread")]
 async fn main() -> Result<()> {
     let bootstrap = ModuleBootstrap::init_module(MODULE_NAME);
-    let db = ModuleDb::open_or_temp(&bootstrap.data_dir, MODULE_NAME)?;
 
     let setup = |node_api: Arc<dyn blvm_node::module::traits::NodeAPI>,
                  _db: Arc<dyn blvm_node::storage::database::Database>,
@@ -22,7 +41,8 @@ async fn main() -> Result<()> {
         let bootstrap = bootstrap.clone();
         let data_dir = data_dir.to_path_buf();
         async move {
-            let (_ctx, config) = bootstrap.context_with_config::<ZmqConfig>(&data_dir);
+            let (_ctx, mut config) = bootstrap.context_with_config::<ZmqConfig>(&data_dir);
+            config.disable_empty_endpoints();
             if !config.is_enabled() {
                 warn!("blvm-zmq: no endpoints configured; module loaded but will not bind sockets");
             }
@@ -44,7 +64,7 @@ async fn main() -> Result<()> {
         module_name: MODULE_NAME,
         module_type: ZmqModule,
         cli_type: ZmqModule,
-        db: db.as_db(),
+        db: Arc::new(StatelessDatabase) as Arc<dyn Database>,
         setup: setup,
         event_types: ZmqModule::event_types(),
     }?;

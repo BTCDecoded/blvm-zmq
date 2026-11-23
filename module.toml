@@ -12,10 +12,11 @@ capabilities = [
 ]
 
 [config_schema]
-hashblock = "tcp://127.0.0.1:28332 — block hash notifications (optional)"
-hashtx = "tcp://127.0.0.1:28333 — transaction hash notifications (optional)"
-rawblock = "tcp://127.0.0.1:28334 — raw block wire bytes (optional)"
-rawtx = "tcp://127.0.0.1:28335 — raw transaction wire bytes (optional)"
-sequence = "tcp://127.0.0.1:28336 — mempool sequence notifications (optional)"
+endpoint = "tcp://127.0.0.1:28332 — one PUB socket for hashblock, hashtx, rawblock, rawtx, and sequence"
+hashblock = "optional; bind the hashblock topic on its own address, or \"\" to turn it off"
+hashtx = "optional; bind the hashtx topic on its own address, or \"\" to turn it off"
+rawblock = "optional; bind the rawblock topic on its own address, or \"\" to turn it off"
+rawtx = "optional; bind the rawtx topic on its own address, or \"\" to turn it off"
+sequence = "optional; bind the sequence topic on its own address, or \"\" to turn it off"
 
 # Written by release CI — do not edit by hand.

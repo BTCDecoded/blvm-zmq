@@ -17,30 +17,26 @@ Its manifest grants read-only blockchain and
 mempool access plus event subscriptions.
 
 Each notification has three frames: topic, payload, and a 32-bit
-little-endian sequence counter for that publisher.
+little-endian sequence counter for that socket. Topics on one address share
+the socket and the counter.
 
 ## Configure
 
 In the module data directory (or node overrides under `[modules.blvm-zmq]`):
 
 ```toml
-hashblock = "tcp://127.0.0.1:28332"
-hashtx = "tcp://127.0.0.1:28333"
-rawblock = "tcp://127.0.0.1:28334"
-rawtx = "tcp://127.0.0.1:28335"
-sequence = "tcp://127.0.0.1:28336"
+endpoint = "tcp://127.0.0.1:28332"
 ```
 
-Set a topic to `""` under `[modules.blvm-zmq]` to disable it, including topics
-the node enables by default. On beta.6, use `hashblock` without raw topics:
-the node can reject `rawtx` reads despite the manifest grant, and the shared
-IPC client does not reliably route `rawblock` read responses while events are
-arriving. Requires **libzmq** on the host (`libzmq3-dev` on Debian/Ubuntu,
-`zeromq` on Arch).
+`endpoint` binds one PUB socket for every topic. `hashblock`, `hashtx`,
+`rawblock`, `rawtx`, and `sequence` are the subscribe topics. A topic key
+binds that topic on its own socket. Set a topic to `""` to turn it off, which
+also keeps it off when `endpoint` is set. Requires **libzmq** on the host
+(`libzmq3-dev` on Debian/Ubuntu, `zeromq` on Arch).
 
 ```toml
 [modules.blvm-zmq]
-hashblock = "tcp://127.0.0.1:28332"
+endpoint = "tcp://127.0.0.1:28332"
 rawblock = ""
 hashtx = ""
 rawtx = ""

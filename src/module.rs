@@ -123,7 +123,7 @@ impl ZmqModule {
     fn help(&self, _ctx: &InvocationContext) -> Result<String, ModuleError> {
         Ok(
             "blvm-zmq — ZeroMQ PUB notifications for blvm-node.\n\
-             Configure hashblock/hashtx/rawblock/rawtx/sequence endpoints in config.toml.\n\
+             Set endpoint in config.toml. A topic key binds that topic alone; \"\" turns it off.\n\
              Former node `[zmq]` section → module data dir config (or [modules.blvm-zmq] overrides)."
                 .to_string(),
         )

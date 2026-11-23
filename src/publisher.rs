@@ -4,6 +4,7 @@ use anyhow::{Context, Result};
 use blvm_protocol::wire::{serialize_block_witnesses, serialize_tx};
 use blvm_protocol::{Block, Hash, Transaction};
 use std::cell::Cell;
+use std::collections::HashMap;
 use std::sync::Mutex;
 use std::sync::atomic::{AtomicU32, Ordering};
 use tracing::{debug, info, warn};
@@ -13,11 +14,8 @@ use crate::config::ZmqConfig;
 
 struct ZmqInner {
     _context: ZmqContext,
-    hashblock_socket: Option<TopicPublisher>,
-    hashtx_socket: Option<TopicPublisher>,
-    rawblock_socket: Option<TopicPublisher>,
-    rawtx_socket: Option<TopicPublisher>,
-    sequence_socket: Option<TopicPublisher>,
+    /// One PUB socket per distinct address. Topics that name the same address share it.
+    sockets: HashMap<String, TopicPublisher>,
 }
 
 struct TopicPublisher {
@@ -35,67 +33,71 @@ impl TopicPublisher {
     }
 }
 
-/// ZMQ notification publisher (binds PUB sockets per configured endpoint).
+/// ZMQ notification publisher.
+///
+/// Each distinct address is bound once. Topics that use the same address share that
+/// PUB socket, its sequence counter, and are separated by the topic frame.
 ///
 /// All `send` calls are synchronized so the SDK can share the publisher across handlers.
 pub struct ZmqPublisher {
     inner: Mutex<ZmqInner>,
+    hashblock: Option<String>,
+    hashtx: Option<String>,
+    rawblock: Option<String>,
+    rawtx: Option<String>,
+    sequence_endpoint: Option<String>,
     sequence: AtomicU32,
 }
 
 impl ZmqPublisher {
     pub fn new(config: &ZmqConfig) -> Result<Self> {
         let context = ZmqContext::new();
-
-        let hashblock_socket = if let Some(ref endpoint) = config.hashblock {
-            Some(Self::create_socket(&context, endpoint, "hashblock")?)
-        } else {
-            None
-        };
-
-        let hashtx_socket = if let Some(ref endpoint) = config.hashtx {
-            Some(Self::create_socket(&context, endpoint, "hashtx")?)
-        } else {
-            None
-        };
-
-        let rawblock_socket = if let Some(ref endpoint) = config.rawblock {
-            Some(Self::create_socket(&context, endpoint, "rawblock")?)
-        } else {
-            None
-        };
-
-        let rawtx_socket = if let Some(ref endpoint) = config.rawtx {
-            Some(Self::create_socket(&context, endpoint, "rawtx")?)
-        } else {
-            None
-        };
-
-        let sequence_socket = if let Some(ref endpoint) = config.sequence {
-            Some(Self::create_socket(&context, endpoint, "sequence")?)
-        } else {
-            None
-        };
+        let hashblock = config.topic_bind(&config.hashblock).map(str::to_string);
+        let hashtx = config.topic_bind(&config.hashtx).map(str::to_string);
+        let rawblock = config.topic_bind(&config.rawblock).map(str::to_string);
+        let rawtx = config.topic_bind(&config.rawtx).map(str::to_string);
+        let sequence_endpoint = config.topic_bind(&config.sequence).map(str::to_string);
+        let mut sockets = HashMap::new();
+        for endpoint in [
+            hashblock.as_deref(),
+            hashtx.as_deref(),
+            rawblock.as_deref(),
+            rawtx.as_deref(),
+            sequence_endpoint.as_deref(),
+        ]
+        .into_iter()
+        .flatten()
+        {
+            if sockets.contains_key(endpoint) {
+                debug!("ZMQ reusing socket for {endpoint}");
+                continue;
+            }
+            sockets.insert(
+                endpoint.to_string(),
+                Self::create_socket(&context, endpoint)?,
+            );
+        }
 
         Ok(Self {
             inner: Mutex::new(ZmqInner {
                 _context: context,
-                hashblock_socket,
-                hashtx_socket,
-                rawblock_socket,
-                rawtx_socket,
-                sequence_socket,
+                sockets,
             }),
+            hashblock,
+            hashtx,
+            rawblock,
+            rawtx,
+            sequence_endpoint,
             sequence: AtomicU32::new(0),
         })
     }
 
-    fn create_socket(context: &ZmqContext, endpoint: &str, topic: &str) -> Result<TopicPublisher> {
+    fn create_socket(context: &ZmqContext, endpoint: &str) -> Result<TopicPublisher> {
         let socket = context.socket(PUB)?;
         socket
             .bind(endpoint)
-            .with_context(|| format!("Failed to bind ZMQ socket for {topic} to {endpoint}"))?;
-        info!("ZMQ {} socket bound to {}", topic, endpoint);
+            .with_context(|| format!("Failed to bind ZMQ socket to {endpoint}"))?;
+        info!("ZMQ socket bound to {}", endpoint);
         Ok(TopicPublisher {
             socket,
             sequence: Cell::new(0),
@@ -104,7 +106,7 @@ impl ZmqPublisher {
 
     pub fn publish_hashblock(&self, block_hash: &Hash) -> Result<()> {
         let g = self.inner.lock().expect("zmq publisher mutex poisoned");
-        if let Some(ref socket) = g.hashblock_socket {
+        if let Some(socket) = self.hashblock.as_ref().and_then(|ep| g.sockets.get(ep)) {
             socket.send("hashblock", block_hash.as_slice())?;
             debug!("Published hashblock notification: {:?}", block_hash);
         }
@@ -112,24 +114,16 @@ impl ZmqPublisher {
     }
 
     pub(crate) fn has_rawtx(&self) -> bool {
-        self.inner
-            .lock()
-            .expect("zmq publisher mutex poisoned")
-            .rawtx_socket
-            .is_some()
+        self.rawtx.is_some()
     }
 
     pub(crate) fn has_rawblock(&self) -> bool {
-        self.inner
-            .lock()
-            .expect("zmq publisher mutex poisoned")
-            .rawblock_socket
-            .is_some()
+        self.rawblock.is_some()
     }
 
     pub fn publish_hashtx(&self, tx_hash: &Hash) -> Result<()> {
         let g = self.inner.lock().expect("zmq publisher mutex poisoned");
-        if let Some(ref socket) = g.hashtx_socket {
+        if let Some(socket) = self.hashtx.as_ref().and_then(|ep| g.sockets.get(ep)) {
             socket.send("hashtx", tx_hash.as_slice())?;
             debug!("Published hashtx notification: {:?}", tx_hash);
         }
@@ -138,7 +132,7 @@ impl ZmqPublisher {
 
     pub fn publish_rawblock(&self, block: &Block) -> Result<()> {
         let g = self.inner.lock().expect("zmq publisher mutex poisoned");
-        if let Some(ref socket) = g.rawblock_socket {
+        if let Some(socket) = self.rawblock.as_ref().and_then(|ep| g.sockets.get(ep)) {
             let block_data =
                 serialize_block_witnesses(block, &[]).map_err(|e| anyhow::anyhow!("{e}"))?;
             socket.send("rawblock", &block_data)?;
@@ -152,7 +146,7 @@ impl ZmqPublisher {
 
     pub fn publish_rawtx(&self, tx: &Transaction) -> Result<()> {
         let g = self.inner.lock().expect("zmq publisher mutex poisoned");
-        if let Some(ref socket) = g.rawtx_socket {
+        if let Some(socket) = self.rawtx.as_ref().and_then(|ep| g.sockets.get(ep)) {
             let tx_data = serialize_tx(tx).map_err(|e| anyhow::anyhow!("{e}"))?;
             socket.send("rawtx", &tx_data)?;
             debug!("Published rawtx notification: {} bytes", tx_data.len());
@@ -162,7 +156,11 @@ impl ZmqPublisher {
 
     pub fn publish_sequence(&self, tx_hash: &Hash, is_mempool_entry: bool) -> Result<()> {
         let g = self.inner.lock().expect("zmq publisher mutex poisoned");
-        if let Some(ref socket) = g.sequence_socket {
+        if let Some(socket) = self
+            .sequence_endpoint
+            .as_ref()
+            .and_then(|ep| g.sockets.get(ep))
+        {
             let sequence_num = self
                 .sequence
                 .fetch_add(1, Ordering::Relaxed)
@@ -225,8 +223,8 @@ mod tests {
             .inner
             .lock()
             .unwrap()
-            .hashblock_socket
-            .as_ref()
+            .sockets
+            .get(publisher.hashblock.as_deref().unwrap())
             .unwrap()
             .socket
             .get_last_endpoint()?
@@ -258,5 +256,84 @@ mod tests {
                 Err(error) => return Err(error).context("receiving hashblock notification"),
             }
         }
+    }
+
+    #[test]
+    fn shared_endpoint_binds_once() {
+        let endpoint = format!("ipc:///tmp/bzmq-{}-one", std::process::id());
+        let publisher = ZmqPublisher::new(&ZmqConfig {
+            hashblock: Some(endpoint.clone()),
+            hashtx: Some(endpoint.clone()),
+            rawblock: Some(endpoint.clone()),
+            rawtx: Some(endpoint),
+            sequence: Some(format!("ipc:///tmp/bzmq-{}-one", std::process::id())),
+            ..ZmqConfig::default()
+        })
+        .expect("one bind");
+        assert_eq!(publisher.inner.lock().expect("lock").sockets.len(), 1);
+    }
+
+    #[test]
+    fn distinct_endpoints_bind_separately() {
+        let pid = std::process::id();
+        let publisher = ZmqPublisher::new(&ZmqConfig {
+            hashblock: Some(format!("ipc:///tmp/bzmq-{pid}-a")),
+            hashtx: Some(format!("ipc:///tmp/bzmq-{pid}-b")),
+            ..ZmqConfig::default()
+        })
+        .expect("two binds");
+        assert_eq!(publisher.inner.lock().expect("lock").sockets.len(), 2);
+    }
+
+    #[test]
+    fn endpoint_covers_every_topic() {
+        let endpoint = format!("ipc:///tmp/bzmq-{}-all", std::process::id());
+        let publisher = ZmqPublisher::new(&ZmqConfig {
+            endpoint: Some(endpoint.clone()),
+            ..ZmqConfig::default()
+        })
+        .expect("shared bind");
+        assert_eq!(publisher.inner.lock().expect("lock").sockets.len(), 1);
+        assert_eq!(publisher.hashblock.as_deref(), Some(endpoint.as_str()));
+        assert_eq!(publisher.hashtx.as_deref(), Some(endpoint.as_str()));
+        assert!(publisher.has_rawblock());
+        assert!(publisher.has_rawtx());
+        assert_eq!(
+            publisher.sequence_endpoint.as_deref(),
+            Some(endpoint.as_str())
+        );
+    }
+
+    #[test]
+    fn topic_key_overrides_endpoint() {
+        let pid = std::process::id();
+        let shared = format!("ipc:///tmp/bzmq-{pid}-s");
+        let only = format!("ipc:///tmp/bzmq-{pid}-h");
+        let publisher = ZmqPublisher::new(&ZmqConfig {
+            endpoint: Some(shared.clone()),
+            hashblock: Some(only.clone()),
+            ..ZmqConfig::default()
+        })
+        .expect("override bind");
+        assert_eq!(publisher.inner.lock().expect("lock").sockets.len(), 2);
+        assert_eq!(publisher.hashblock.as_deref(), Some(only.as_str()));
+        assert_eq!(publisher.hashtx.as_deref(), Some(shared.as_str()));
+    }
+
+    #[test]
+    fn empty_topic_does_not_use_endpoint() {
+        let endpoint = format!("ipc:///tmp/bzmq-{}-off", std::process::id());
+        let publisher = ZmqPublisher::new(&ZmqConfig {
+            endpoint: Some(endpoint.clone()),
+            rawtx: Some(String::new()),
+            sequence: Some(" ".into()),
+            ..ZmqConfig::default()
+        })
+        .expect("bind");
+        assert_eq!(publisher.inner.lock().expect("lock").sockets.len(), 1);
+        assert!(publisher.has_rawblock());
+        assert!(!publisher.has_rawtx());
+        assert!(publisher.sequence_endpoint.is_none());
+        assert_eq!(publisher.hashblock.as_deref(), Some(endpoint.as_str()));
     }
 }

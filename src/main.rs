@@ -1,7 +1,8 @@
 //! blvm-zmq — ZeroMQ PUB notifications (bind) for blockchain and mempool events.
 //!
 //! Replaces the in-process `zmq` feature on blvm-node. Configure endpoints in this module's
-//! `config.toml` (same keys as the old `[zmq]` block: hashblock, hashtx, rawblock, rawtx, sequence).
+//! `config.toml`. `endpoint` binds every topic. A topic key overrides that topic.
+//! An empty topic value turns that topic off.
 
 use anyhow::{Result, bail};
 use blvm_node::storage::database::{Database, Tree};
@@ -41,8 +42,7 @@ async fn main() -> Result<()> {
         let bootstrap = bootstrap.clone();
         let data_dir = data_dir.to_path_buf();
         async move {
-            let (_ctx, mut config) = bootstrap.context_with_config::<ZmqConfig>(&data_dir);
-            config.disable_empty_endpoints();
+            let (_ctx, config) = bootstrap.context_with_config::<ZmqConfig>(&data_dir);
             if !config.is_enabled() {
                 warn!("blvm-zmq: no endpoints configured; module loaded but will not bind sockets");
             }

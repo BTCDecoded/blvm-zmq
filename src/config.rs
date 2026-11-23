@@ -3,13 +3,19 @@
 use blvm_sdk_macros::config;
 use serde::{Deserialize, Serialize};
 
-/// ZeroMQ PUB endpoints (same semantics as former blvm-node `[zmq]` config).
+/// ZeroMQ PUB bind addresses.
 ///
+/// `endpoint` covers every topic that is not set. A topic key binds that topic
+/// on its own address. An empty topic value turns that topic off.
 /// Node overrides: `[modules.blvm-zmq]` in the main config.
 #[config(name = "blvm-zmq")]
 #[derive(Clone, Default, Debug, Serialize, Deserialize)]
 pub struct ZmqConfig {
-    /// `hashblock` topic — 32-byte block hash
+    /// Bind every topic that does not set its own address.
+    #[serde(default)]
+    #[config_env]
+    pub endpoint: Option<String>,
+    /// `hashblock` topic — 32-byte block hash. Overrides `endpoint` for this topic.
     #[serde(default)]
     #[config_env]
     pub hashblock: Option<String>,
@@ -37,6 +43,7 @@ impl ZmqConfig {
     /// Treat explicit empty values as disabled, including node-injected overrides.
     pub fn disable_empty_endpoints(&mut self) {
         for endpoint in [
+            &mut self.endpoint,
             &mut self.hashblock,
             &mut self.hashtx,
             &mut self.rawblock,
@@ -55,6 +62,9 @@ impl ZmqConfig {
     /// Key-value map for `ModuleContext` (diagnostics / tooling).
     pub fn to_context_map(&self) -> std::collections::HashMap<String, String> {
         let mut m = std::collections::HashMap::new();
+        if let Some(ref v) = self.endpoint {
+            m.insert("blvm-zmq.endpoint".to_string(), v.clone());
+        }
         if let Some(ref v) = self.hashblock {
             m.insert("blvm-zmq.hashblock".to_string(), v.clone());
         }
@@ -73,14 +83,35 @@ impl ZmqConfig {
         m
     }
 
-    /// True if at least one endpoint is set.
+    /// True if at least one non-empty address is set.
     pub fn is_enabled(&self) -> bool {
-        self.hashblock.is_some()
-            || self.hashtx.is_some()
-            || self.rawblock.is_some()
-            || self.rawtx.is_some()
-            || self.sequence.is_some()
+        [
+            &self.endpoint,
+            &self.hashblock,
+            &self.hashtx,
+            &self.rawblock,
+            &self.rawtx,
+            &self.sequence,
+        ]
+        .into_iter()
+        .any(|value| present(value).is_some())
     }
+
+    /// Address for one topic.
+    ///
+    /// A non-empty topic key wins. An empty topic key turns that topic off.
+    /// An unset topic key uses `endpoint`.
+    pub fn topic_bind<'a>(&'a self, specific: &'a Option<String>) -> Option<&'a str> {
+        match specific.as_deref().map(str::trim) {
+            Some("") => None,
+            Some(value) => Some(value),
+            None => present(&self.endpoint),
+        }
+    }
+}
+
+fn present(value: &Option<String>) -> Option<&str> {
+    value.as_deref().map(str::trim).filter(|s| !s.is_empty())
 }
 
 #[cfg(test)]

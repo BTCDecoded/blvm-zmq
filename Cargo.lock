@@ -379,9 +379,9 @@ dependencies = [
 
 [[package]]
 name = "blvm-node"
-version = "0.1.104"
+version = "0.1.105"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "11619f53fbeff7f951006078c66c31ab4faa8816520807fe289510ed167f0361"
+checksum = "050f08e9006f84607f5b695e2bdd39090f37267a08637a78597d45f538f8bc3f"
 dependencies = [
  "aes-gcm",
  "anyhow",

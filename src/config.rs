@@ -34,6 +34,24 @@ pub struct ZmqConfig {
 blvm_sdk::impl_module_config!(ZmqConfig);
 
 impl ZmqConfig {
+    /// Treat explicit empty values as disabled, including node-injected overrides.
+    pub fn disable_empty_endpoints(&mut self) {
+        for endpoint in [
+            &mut self.hashblock,
+            &mut self.hashtx,
+            &mut self.rawblock,
+            &mut self.rawtx,
+            &mut self.sequence,
+        ] {
+            if endpoint
+                .as_deref()
+                .is_some_and(|value| value.trim().is_empty())
+            {
+                *endpoint = None;
+            }
+        }
+    }
+
     /// Key-value map for `ModuleContext` (diagnostics / tooling).
     pub fn to_context_map(&self) -> std::collections::HashMap<String, String> {
         let mut m = std::collections::HashMap::new();
@@ -62,5 +80,24 @@ impl ZmqConfig {
             || self.rawblock.is_some()
             || self.rawtx.is_some()
             || self.sequence.is_some()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn empty_endpoints_override_defaults_without_disabling_blocks() {
+        let mut config = ZmqConfig {
+            hashblock: Some("tcp://127.0.0.1:28332".into()),
+            rawtx: Some("".into()),
+            sequence: Some(" ".into()),
+            ..ZmqConfig::default()
+        };
+        config.disable_empty_endpoints();
+        assert!(config.is_enabled());
+        assert!(config.rawtx.is_none());
+        assert!(config.sequence.is_none());
     }
 }

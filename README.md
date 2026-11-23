@@ -28,6 +28,8 @@ In the module data directory (or node overrides under `[modules.blvm-zmq]`):
 endpoint = "tcp://127.0.0.1:28332"
 ```
 
+`[config_defaults]` in `module.toml` is what a load uses when the operator
+sets nothing. The node copies that table and does not name the keys.
 `endpoint` binds one PUB socket for every topic. `hashblock`, `hashtx`,
 `rawblock`, `rawtx`, and `sequence` are the subscribe topics. A topic key
 binds that topic on its own socket. Set a topic to `""` to turn it off, which

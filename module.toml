@@ -11,8 +11,11 @@ capabilities = [
     "subscribe_events",
 ]
 
+[config_defaults]
+endpoint = "tcp://127.0.0.1:28332"
+
 [config_schema]
-endpoint = "tcp://127.0.0.1:28332 — one PUB socket for hashblock, hashtx, rawblock, rawtx, and sequence"
+endpoint = "one PUB socket for hashblock, hashtx, rawblock, rawtx, and sequence"
 hashblock = "optional; bind the hashblock topic on its own address, or \"\" to turn it off"
 hashtx = "optional; bind the hashtx topic on its own address, or \"\" to turn it off"
 rawblock = "optional; bind the rawblock topic on its own address, or \"\" to turn it off"

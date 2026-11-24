@@ -42,7 +42,11 @@ async fn main() -> Result<()> {
         let bootstrap = bootstrap.clone();
         let data_dir = data_dir.to_path_buf();
         async move {
-            let (_ctx, config) = bootstrap.context_with_config::<ZmqConfig>(&data_dir);
+            let (_ctx, config) = bootstrap
+                .context_with_config::<ZmqConfig>(&data_dir)
+                .map_err(|error| {
+                    blvm_node::module::traits::ModuleError::Other(error.to_string())
+                })?;
             if !config.is_enabled() {
                 warn!("blvm-zmq: no endpoints configured; module loaded but will not bind sockets");
             }
